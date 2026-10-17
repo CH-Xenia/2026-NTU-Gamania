@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>校園職涯博覽會 - 接寶物遊戲</title>
   <style>
-    :root { var-main-color: #FF6600; }
+    :root { --main-color: #FF6600; }
     * { box-sizing: border-box; }
     body {
       margin: 0; padding: 0;
@@ -19,48 +19,49 @@
       background-size: cover; background-position: center;
       box-shadow: 0 0 20px rgba(0,0,0,0.8);
     }
-    canvas { display: block; width: 100%; height: 100%; }
+    canvas { display: block; width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1; }
     
     .hud {
       position: absolute; top: 15px; left: 15px; right: 15px;
       display: flex; justify-content: space-between;
-      font-size: 20px; font-weight: bold; color: #FF6600;
+      font-size: 20px; font-weight: bold; color: var(--main-color);
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none; z-index: 5;
     }
 
-    /* 右上角隱藏觸發點 */
+    /* 右上角隱藏點擊區 */
     #secret-trigger {
       position: absolute; top: 0; right: 0;
       width: 80px; height: 80px; z-index: 50; cursor: pointer;
     }
 
-    /* 彈窗畫面 */
+    /* 彈窗畫面覆蓋層：強制 z-index 比 canvas 高且可接收觸發事件 */
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 100; padding: 25px;
+      justify-content: center; align-items: center; z-index: 999; padding: 25px;
+      pointer-events: auto;
     }
     .modal-card {
       background: #2a2a2a; border-radius: 14px; width: 100%;
       max-width: 420px; max-height: 85vh; overflow-y: auto; padding: 22px;
-      border: 2px solid #FF6600;
+      border: 2px solid var(--main-color); pointer-events: auto;
     }
-    .modal-card h2 { margin-top: 0; color: #FF6600; font-size: 22px; text-align: center; }
+    .modal-card h2 { margin-top: 0; color: var(--main-color); font-size: 22px; text-align: center; }
     
     .input-style {
       width: 100%; padding: 12px; border-radius: 8px;
       border: 1px solid #555; background: #1a1a1a; color: #fff;
-      font-size: 16px; margin: 15px 0; text-align: center;
+      font-size: 16px; margin: 15px 0; text-align: center; pointer-events: auto;
     }
     .btn-main {
-      width: 100%; padding: 12px; background: #FF6600;
+      width: 100%; padding: 12px; background: var(--main-color);
       border: none; color: white; border-radius: 8px;
-      font-weight: bold; font-size: 18px; cursor: pointer;
+      font-weight: bold; font-size: 18px; cursor: pointer; pointer-events: auto;
     }
     .btn-sub {
       background: rgba(255,255,255,0.1); border: 1px solid #666;
       color: #ccc; padding: 8px 12px; border-radius: 6px;
-      font-size: 13px; cursor: pointer; width: 100%; margin-top: 8px;
+      font-size: 13px; cursor: pointer; width: 100%; margin-top: 8px; pointer-events: auto;
     }
 
     /* 後台表單 */
@@ -73,14 +74,14 @@
     
     .rank-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     .rank-table th, .rank-table td { padding: 10px 5px; text-align: center; border-bottom: 1px solid #444; }
-    .rank-table th { color: #FF6600; }
+    .rank-table th { color: var(--main-color); }
   </style>
 </head>
 <body>
 
 <div id="game-container">
-  <!-- 右上角連續點 5 下觸發後台密碼框 -->
-  <div id="secret-trigger"></div>
+  <!-- 右上角隱藏點擊區 (連續點擊 5 下開啟後台) -->
+  <div id="secret-trigger" onclick="handleSecretClick()"></div>
 
   <div class="hud">
     <div id="score-display">得分: 0</div>
@@ -89,13 +90,13 @@
   
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 1. 開始畫面 -->
+  <!-- 1. 輸入名字開始畫面 -->
   <div id="start-screen" class="screen-overlay">
     <div class="modal-card" style="text-align: center;">
       <h2>🎮 職涯挑戰賽</h2>
       <p style="color: #ccc; font-size: 14px;">移動底盤接取好康，避開扣分項目！</p>
       <input type="text" id="player-name-input" class="input-style" placeholder="請輸入你的名字 / 暱稱" maxlength="10">
-      <button id="btn-start" class="btn-main">開始遊戲</button>
+      <button class="btn-main" onclick="onClickStartGame()">開始遊戲</button>
     </div>
   </div>
 
@@ -103,7 +104,7 @@
   <div id="end-screen" class="screen-overlay" style="display: none;">
     <div class="modal-card">
       <h2>🎉 遊戲結束</h2>
-      <p id="final-score-text" style="text-align: center; font-size: 20px; font-weight: bold; color: #FF6600; margin: 10px 0;"></p>
+      <p id="final-score-text" style="text-align: center; font-size: 20px; font-weight: bold; color: var(--main-color); margin: 10px 0;"></p>
       
       <h3 style="color: #fff; font-size: 16px; text-align: center; margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">🏆 現場高分榜 (Top 5)</h3>
       <table class="rank-table">
@@ -111,7 +112,7 @@
         <tbody id="rank-tbody"></tbody>
       </table>
 
-      <button id="btn-restart" class="btn-main" style="margin-top: 20px;">再玩一次 / 換下一位</button>
+      <button class="btn-main" onclick="onClickRestart()" style="margin-top: 20px;">再玩一次 / 換下一位</button>
     </div>
   </div>
 
@@ -120,8 +121,8 @@
     <div class="modal-card" style="max-width: 300px; text-align: center;">
       <h2>🔒 管理員驗證</h2>
       <input type="password" id="admin-pass-input" class="input-style" placeholder="請輸入後台密碼">
-      <button id="btn-auth" class="btn-main">進入後台</button>
-      <button id="btn-cancel-auth" class="btn-sub">取消</button>
+      <button class="btn-main" onclick="onClickVerifyAuth()">進入後台</button>
+      <button class="btn-sub" onclick="closeModal('auth-modal')">取消</button>
     </div>
   </div>
 
@@ -151,299 +152,287 @@
       </div>
       
       <hr style="border-color:#444; margin:15px 0;">
-      <label style="color:#FF6600; font-weight:bold;">掉落元素設定</label>
+      <label style="color:var(--main-color); font-weight:bold;">掉落元素設定</label>
       <div id="elem-list" style="margin-top:10px;"></div>
-      <button type="button" id="btn-add-elem" class="btn-sub" style="border-color:#FF6600; color:#fff;">+ 新增掉落元素</button>
+      <button type="button" class="btn-sub" onclick="onClickAddElemCard()" style="border-color:var(--main-color); color:#fff;">+ 新增掉落元素</button>
 
-      <button id="btn-save-admin" class="btn-main" style="margin-top: 15px;">儲存設定</button>
-      <button id="btn-clear-rank" class="btn-sub" style="background:#dc3545; color:white; border:none; margin-top:10px;">清除排行榜</button>
-      <button id="btn-close-admin" class="btn-sub">關閉面板</button>
+      <button class="btn-main" onclick="onClickSaveAdmin()" style="margin-top: 15px;">儲存設定</button>
+      <button class="btn-sub" onclick="onClickClearRank()" style="background:#dc3545; color:white; border:none; margin-top:10px;">清除排行榜</button>
+      <button class="btn-sub" onclick="closeModal('admin-modal')">關閉面板</button>
     </div>
   </div>
 </div>
 
 <script>
-  window.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+  let canvas, ctx;
+  let config = {
+    gameTime: 60,
+    baseSpeed: 4,
+    adminPassword: '1234',
+    bgImgData: null,
+    logoImgData: null,
+    elements: [
+      { text: '彈性工時', score: 10, imgData: null },
+      { text: '員工餐廳', score: 10, imgData: null },
+      { text: '年終獎金', score: 20, imgData: null },
+      { text: '健身房', score: 10, imgData: null },
+      { text: '升降桌', score: 10, imgData: null },
+      { text: '生日假', score: 15, imgData: null },
+      { text: '需要打卡', score: -10, imgData: null }
+    ]
+  };
+
+  if (localStorage.getItem('gamania_game_config')) {
+    try { config = JSON.parse(localStorage.getItem('gamania_game_config')); } catch(e) {}
+  }
+
+  let currentPlayerName = '';
+  let score = 0;
+  let timeLeft = config.gameTime;
+  let gameInterval, spawnInterval, animFrameId;
+  let isGameOver = true;
+
+  let bgImage = new Image();
+  let logoImage = new Image();
+  if (config.bgImgData) bgImage.src = config.bgImgData;
+  if (config.logoImgData) logoImage.src = config.logoImgData;
+
+  let player = { x: 0, y: 0, width: 90, height: 40 };
+  let items = [];
+
+  window.onload = function() {
+    console.log("Game Page Initialized");
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
     
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
-
-
-const defaultConfig = {
-  gameTime: 60,
-  baseSpeed: 4,
-  adminPassword: '1234',
-  bgImgData: null,
-  logoImgData: null,
-  elements: [
-    { text: '彈性工時', score: 10, imgData: null },
-    { text: '員工餐廳', score: 10, imgData: null },
-    { text: '年終獎金', score: 20, imgData: null },
-    { text: '健身房', score: 10, imgData: null },
-    { text: '升降桌', score: 10, imgData: null },
-    { text: '生日假', score: 15, imgData: null },
-    { text: '需要打卡', score: -10, imgData: null }
-  ]
-};
-
-let config = {
-  ...defaultConfig,
-  elements: defaultConfig.elements.map(item => ({ ...item }))
-};
-
-try {
-  const saved = localStorage.getItem('gamania_game_config');
-
-  if (saved) {
-    const parsed = JSON.parse(saved);
-
-    config = { ...config, ...parsed };
-
-    // 避免舊設定缺少掉落元素
-    if (!Array.isArray(config.elements) ||
-        config.elements.length === 0) {
-      config.elements = defaultConfig.elements.map(
-        item => ({ ...item })
-      );
-    }
-
-    // 確保每個元素都有必要資料
-    config.elements = config.elements.filter(
-      item => item && typeof item.text === 'string'
-    );
-
-    if (config.elements.length === 0) {
-      config.elements = defaultConfig.elements.map(
-        item => ({ ...item })
-      );
-    }
-
-    // 避免遊戲時間或速度不是有效數字
-    if (!Number.isFinite(Number(config.gameTime)) ||
-        Number(config.gameTime) <= 0) {
-      config.gameTime = 60;
-    } else {
-      config.gameTime = Number(config.gameTime);
-    }
-
-    if (!Number.isFinite(Number(config.baseSpeed)) ||
-        Number(config.baseSpeed) <= 0) {
-      config.baseSpeed = 4;
-    } else {
-      config.baseSpeed = Number(config.baseSpeed);
-    }
-  }
-} catch (error) {
-  console.error('讀取遊戲設定失敗：', error);
-}
-    }
-
-    let currentPlayerName = '';
-    let score = 0;
-    let timeLeft = config.gameTime;
-    let gameInterval, spawnInterval, animFrameId;
-    let isGameOver = true;
-
-    let bgImage = new Image();
-    let logoImage = new Image();
-    if (config.bgImgData) bgImage.src = config.bgImgData;
-    if (config.logoImgData) logoImage.src = config.logoImgData;
-
-    const player = { x: canvas.width / 2 - 45, y: canvas.height - 80, width: 90, height: 40 };
-    let items = [];
-
-    function movePlayer(e) {
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const rect = canvas.getBoundingClientRect();
-      player.x = clientX - rect.left - player.width / 2;
-      if (player.x < 0) player.x = 0;
-      if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-    }
+    player.x = canvas.width / 2 - 45;
+    player.y = canvas.height - 80;
 
     window.addEventListener('touchmove', movePlayer);
     window.addEventListener('mousemove', movePlayer);
+  };
 
-    // 按鈕監聽事件綁定
-    document.getElementById('btn-start').addEventListener('click', () => {
-      const input = document.getElementById('player-name-input').value.trim();
-      if (!input) { alert('請輸入您的名字！'); return; }
-      currentPlayerName = input;
-      document.getElementById('start-screen').style.display = 'none';
-      startGame();
+  function movePlayer(e) {
+    if (isGameOver) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const rect = canvas.getBoundingClientRect();
+    player.x = clientX - rect.left - player.width / 2;
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+  }
+
+  // 1. 開始遊戲按鈕觸發
+  function onClickStartGame() {
+    console.log("Start Button Clicked");
+    const input = document.getElementById('player-name-input').value.trim();
+    if (!input) {
+      alert('請輸入您的名字！');
+      return;
+    }
+    currentPlayerName = input;
+    document.getElementById('start-screen').style.display = 'none';
+    startGame();
+  }
+
+  // 2. 再玩一次按鈕觸發
+  function onClickRestart() {
+    console.log("Restart Button Clicked");
+    document.getElementById('end-screen').style.display = 'none';
+    document.getElementById('player-name-input').value = '';
+    document.getElementById('start-screen').style.display = 'flex';
+  }
+
+  // 3. 右上角隱藏點擊點 (5下)
+  let secretClicks = 0, secretTimer = null;
+  function handleSecretClick() {
+    secretClicks++;
+    console.log("Secret clicked:", secretClicks);
+    clearTimeout(secretTimer);
+    if (secretClicks >= 5) {
+      secretClicks = 0;
+      document.getElementById('admin-pass-input').value = '';
+      document.getElementById('auth-modal').style.display = 'flex';
+    } else {
+      secretTimer = setTimeout(() => { secretClicks = 0; }, 1500);
+    }
+  }
+
+  function onClickVerifyAuth() {
+    const pass = document.getElementById('admin-pass-input').value;
+    if (pass === (config.adminPassword || '1234')) {
+      closeModal('auth-modal');
+      openAdmin();
+    } else {
+      alert('密碼錯誤！');
+    }
+  }
+
+  function openAdmin() {
+    document.getElementById('cfg-time').value = config.gameTime;
+    document.getElementById('cfg-speed').value = config.baseSpeed || 4;
+    document.getElementById('cfg-password').value = config.adminPassword || '1234';
+    
+    const list = document.getElementById('elem-list');
+    list.innerHTML = '';
+    config.elements.forEach((item) => onClickAddElemCard(item.text, item.score, item.imgData));
+
+    document.getElementById('admin-modal').style.display = 'flex';
+  }
+
+  function onClickAddElemCard(text = '', score = 10, imgData = null) {
+    const list = document.getElementById('elem-list');
+    const card = document.createElement('div');
+    card.className = 'elem-card';
+    card.setAttribute('data-img', imgData || '');
+    card.innerHTML = `
+      <div class="elem-row">
+        <input type="text" class="elem-text" value="${text}" placeholder="元素名稱">
+        <input type="number" class="elem-score" value="${score}" placeholder="分數" style="width:70px;">
+        <button type="button" class="btn-del" onclick="this.parentElement.parentElement.remove()">X</button>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="font-size:11px;">圖片上傳</label>
+        <input type="file" class="elem-img-file" accept="image/*">
+      </div>
+    `;
+    list.appendChild(card);
+  }
+
+  function onClickSaveAdmin() {
+    config.gameTime = parseInt(document.getElementById('cfg-time').value) || 60;
+    config.baseSpeed = parseInt(document.getElementById('cfg-speed').value) || 4;
+    config.adminPassword = document.getElementById('cfg-password').value || '1234';
+
+    const cards = document.querySelectorAll('#elem-list .elem-card');
+    let newElems = [];
+    cards.forEach((card) => {
+      const text = card.querySelector('.elem-text').value.trim();
+      const score = parseInt(card.querySelector('.elem-score').value) || 0;
+      let existingImg = card.getAttribute('data-img');
+      newElems.push({ text, score, imgData: existingImg || null });
     });
 
-    document.getElementById('btn-restart').addEventListener('click', () => {
-      document.getElementById('end-screen').style.display = 'none';
-      document.getElementById('player-name-input').value = '';
-      document.getElementById('start-screen').style.display = 'flex';
+    if (newElems.length > 0) config.elements = newElems;
+    localStorage.setItem('gamania_game_config', JSON.stringify(config));
+    closeModal('admin-modal');
+    alert('設定已儲存！');
+    location.reload();
+  }
+
+  function onClickClearRank() {
+    if (confirm('確定要清除排行榜嗎？')) {
+      localStorage.removeItem('gamania_ranks');
+      alert('排行榜已清空！');
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  function spawnItem() {
+    if (isGameOver) return;
+    const randomElem = config.elements[Math.floor(Math.random() * config.elements.length)];
+    let elemImg = null;
+    if (randomElem.imgData) { elemImg = new Image(); elemImg.src = randomElem.imgData; }
+    
+    items.push({
+      x: Math.random() * (canvas.width - 80),
+      y: -40,
+      speed: (config.baseSpeed || 4) + Math.random() * 2,
+      data: randomElem,
+      imgObj: elemImg
     });
+  }
 
-    let secretClicks = 0, secretTimer = null;
-    document.getElementById('secret-trigger').addEventListener('click', () => {
-      secretClicks++;
-      clearTimeout(secretTimer);
-      if (secretClicks >= 5) {
-        secretClicks = 0;
-        document.getElementById('admin-pass-input').value = '';
-        document.getElementById('auth-modal').style.display = 'flex';
-      } else {
-        secretTimer = setTimeout(() => { secretClicks = 0; }, 1500);
-      }
-    });
+  function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    document.getElementById('btn-auth').addEventListener('click', () => {
-      if (document.getElementById('admin-pass-input').value === (config.adminPassword || '1234')) {
-        document.getElementById('auth-modal').style.display = 'none';
-        openAdmin();
-      } else { alert('密碼錯誤！'); }
-    });
+    if (config.bgImgData && bgImage.complete) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-    document.getElementById('btn-cancel-auth').addEventListener('click', () => {
-      document.getElementById('auth-modal').style.display = 'none';
-    });
-
-    document.getElementById('btn-close-admin').addEventListener('click', () => {
-      document.getElementById('admin-modal').style.display = 'none';
-    });
-
-    document.getElementById('btn-add-elem').addEventListener('click', () => addElemCard());
-
-    function spawnItem() {
-      if (isGameOver) return;
-      const randomElem = config.elements[Math.floor(Math.random() * config.elements.length)];
-      let elemImg = null;
-      if (randomElem.imgData) { elemImg = new Image(); elemImg.src = randomElem.imgData; }
-      
-      items.push({
-        x: Math.random() * (canvas.width - 80),
-        y: -40,
-        speed: (config.baseSpeed || 4) + Math.random() * 2,
-        data: randomElem,
-        imgObj: elemImg
-      });
+    if (config.logoImgData && logoImage.complete) {
+      ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
+    } else {
+      ctx.fillStyle = '#FF6600';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
     }
 
-    function update() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = items.length - 1; i >= 0; i--) {
+      let item = items[i];
+      item.y += item.speed;
 
-      if (config.bgImgData && bgImage.complete) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-
-      if (config.logoImgData && logoImage.complete) {
-        ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
+      if (item.imgObj && item.imgObj.complete) {
+        ctx.drawImage(item.imgObj, item.x, item.y, 70, 35);
       } else {
-        ctx.fillStyle = '#FF6600';
-        ctx.fillRect(player.x, player.y, player.width, player.height);
+        ctx.fillStyle = item.data.score >= 0 ? '#28a745' : '#dc3545';
+        ctx.fillRect(item.x, item.y, 80, 28);
         ctx.fillStyle = '#FFF';
-        ctx.font = 'bold 14px Arial';
+        ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
+        ctx.fillText(item.data.text, item.x + 40, item.y + 18);
       }
 
-      for (let i = items.length - 1; i >= 0; i--) {
-        let item = items[i];
-        item.y += item.speed;
-
-        if (item.imgObj && item.imgObj.complete) {
-          ctx.drawImage(item.imgObj, item.x, item.y, 70, 35);
-        } else {
-          ctx.fillStyle = item.data.score >= 0 ? '#28a745' : '#dc3545';
-          ctx.fillRect(item.x, item.y, 80, 28);
-          ctx.fillStyle = '#FFF';
-          ctx.font = 'bold 12px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(item.data.text, item.x + 40, item.y + 18);
-        }
-
-        if (
-          item.y + 30 >= player.y &&
-          item.x + 80 >= player.x &&
-          item.x <= player.x + player.width
-        ) {
-          score += item.data.score;
-          document.getElementById('score-display').innerText = '得分: ' + score;
-          items.splice(i, 1);
-          continue;
-        }
-
-        if (item.y > canvas.height) items.splice(i, 1);
+      if (
+        item.y + 30 >= player.y &&
+        item.x + 80 >= player.x &&
+        item.x <= player.x + player.width
+      ) {
+        score += item.data.score;
+        document.getElementById('score-display').innerText = '得分: ' + score;
+        items.splice(i, 1);
+        continue;
       }
 
-      if (!isGameOver) animFrameId = requestAnimationFrame(update);
+      if (item.y > canvas.height) items.splice(i, 1);
     }
 
-    function startGame() {
-      clearInterval(gameInterval); clearInterval(spawnInterval);
-      cancelAnimationFrame(animFrameId);
+    if (!isGameOver) animFrameId = requestAnimationFrame(update);
+  }
 
-      score = 0; timeLeft = config.gameTime; items = []; isGameOver = false;
-      document.getElementById('score-display').innerText = '得分: ' + score;
+  function startGame() {
+    clearInterval(gameInterval); clearInterval(spawnInterval);
+    cancelAnimationFrame(animFrameId);
+
+    score = 0; timeLeft = config.gameTime; items = []; isGameOver = false;
+    document.getElementById('score-display').innerText = '得分: ' + score;
+    document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
+
+    spawnInterval = setInterval(spawnItem, 600);
+    gameInterval = setInterval(() => {
+      timeLeft--;
       document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
+      if (timeLeft <= 0) endGame();
+    }, 1000);
 
-      spawnInterval = setInterval(spawnItem, 600);
-      gameInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
-        if (timeLeft <= 0) endGame();
-      }, 1000);
+    update();
+  }
 
-      update();
-    }
+  function endGame() {
+    isGameOver = true;
+    clearInterval(gameInterval); clearInterval(spawnInterval);
+    
+    let ranks = JSON.parse(localStorage.getItem('gamania_ranks') || '[]');
+    ranks.push({ name: currentPlayerName, score, date: new Date().toLocaleDateString() });
+    ranks.sort((a, b) => b.score - a.score);
+    ranks = ranks.slice(0, 5);
+    localStorage.setItem('gamania_ranks', JSON.stringify(ranks));
 
-    function endGame() {
-      isGameOver = true;
-      clearInterval(gameInterval); clearInterval(spawnInterval);
-      
-      let ranks = JSON.parse(localStorage.getItem('gamania_ranks') || '[]');
-      ranks.push({ name: currentPlayerName, score, date: new Date().toLocaleDateString() });
-      ranks.sort((a, b) => b.score - a.score);
-      ranks = ranks.slice(0, 5);
-      localStorage.setItem('gamania_ranks', JSON.stringify(ranks));
+    document.getElementById('final-score-text').innerText = `${currentPlayerName} 獲得了 ${score} 分！`;
+    
+    const tbody = document.getElementById('rank-tbody');
+    tbody.innerHTML = '';
+    ranks.forEach((r, idx) => {
+      tbody.innerHTML += `<tr><td>${idx + 1}</td><td>${r.name}</td><td>${r.score}</td></tr>`;
+    });
 
-      document.getElementById('final-score-text').innerText = `${currentPlayerName} 獲得了 ${score} 分！`;
-      
-      const tbody = document.getElementById('rank-tbody');
-      tbody.innerHTML = '';
-      ranks.forEach((r, idx) => {
-        tbody.innerHTML += `<tr><td>${idx + 1}</td><td>${r.name}</td><td>${r.score}</td></tr>`;
-      });
-
-      document.getElementById('end-screen').style.display = 'flex';
-    }
-
-    function openAdmin() {
-      document.getElementById('cfg-time').value = config.gameTime;
-      document.getElementById('cfg-speed').value = config.baseSpeed || 4;
-      document.getElementById('cfg-password').value = config.adminPassword || '1234';
-      
-      const list = document.getElementById('elem-list');
-      list.innerHTML = '';
-      config.elements.forEach((item) => addElemCard(item.text, item.score, item.imgData));
-
-      document.getElementById('admin-modal').style.display = 'flex';
-    }
-
-    function addElemCard(text = '', score = 10, imgData = null) {
-      const list = document.getElementById('elem-list');
-      const card = document.createElement('div');
-      card.className = 'elem-card';
-      card.setAttribute('data-img', imgData || '');
-      card.innerHTML = `
-        <div class="elem-row">
-          <input type="text" class="elem-text" value="${text}" placeholder="元素名稱">
-          <input type="number" class="elem-score" value="${score}" placeholder="分數" style="width:70px;">
-          <button type="button" class="btn-del">X</button>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label style="font-size:11px;">圖片上傳</label>
-          <input type="file" class="elem-img-file" accept="image/*">
-        </div>
-      `;
-      card.querySelector('.btn-del').onclick = () => card.remove();
-      list.appendChild(card);
-    }
-
-    document.getElementById('btn-save-admin').addEventListener('click', () => {
-      config.gameTime = parseInt(document.getElementById('cfg-time').value) || 60;
-      config.baseSpeed = parseInt(document.getElementById('cfg-speed').value
+    document.getElementById('end-screen').style.display = 'flex';
+  }
+</script>
+</body>
+</html>
