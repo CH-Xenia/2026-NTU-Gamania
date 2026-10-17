@@ -8,11 +8,11 @@
     :root {
       --main-color: #FF6600; /* Gamania 橘色系 */
     }
+    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 0;
-      background-color: #222;
-      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background-color: #111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       overflow: hidden;
       touch-action: none;
       color: #fff;
@@ -23,37 +23,78 @@
       height: 100vh;
       max-width: 500px;
       margin: 0 auto;
-      background-color: #111;
+      background-color: #222;
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8);
     }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
+    canvas { display: block; width: 100%; height: 100%; }
+    
     .hud {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 18px;
-      font-weight: bold;
+      top: 15px; left: 15px; right: 15px;
+      display: flex; justify-content: space-between;
+      font-size: 20px; font-weight: bold;
       color: var(--main-color);
-      text-shadow: 1px 1px 2px #000;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
       pointer-events: none;
+      z-index: 5;
     }
-    #admin-btn {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.5);
+
+    /* 浮動按鈕區 */
+    .btn-group {
+      position: absolute; bottom: 15px; right: 15px;
+      display: flex; gap: 8px; z-index: 10;
+    }
+    .action-btn {
+      background: rgba(0,0,0,0.7);
       color: #fff;
       border: 1px solid var(--main-color);
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
     }
+
+    /* 彈窗通用樣式 */
+    .modal-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none; justify-content: center; align-items: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #2a2a2a; border-radius: 12px;
+      width: 100%; max-width: 400px; max-height: 90vh;
+      overflow-y: auto; padding: 20px;
+      border: 2px solid var(--main-color);
+    }
+    .modal-card h2 { margin-top: 0; color: var(--main-color); font-size: 20px; text-align: center; }
+    
+    /* 後台表單控制 */
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 13px; margin-bottom: 4px; color: #ccc; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 8px; border-radius: 4px;
+      border: 1px solid #444; background: #1a1a1a; color: #fff;
+    }
+    .elem-row {
+      display: flex; gap: 5px; margin-bottom: 6px; align-items: center;
+    }
+    .elem-row input[type="text"] { flex: 2; }
+    .elem-row input[type="number"] { flex: 1; }
+    .btn-del { background: #dc3545; border: none; color: white; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+    
+    .btn-submit {
+      width: 100%; padding: 10px; background: var(--main-color);
+      border: none; color: white; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px;
+    }
+
+    /* 排行榜表格 */
+    .rank-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .rank-table th, .rank-table td { padding: 8px; text-align: center; border-bottom: 1px solid #444; }
+    .rank-table th { color: var(--main-color); }
   </style>
 </head>
 <body>
@@ -63,51 +104,119 @@
     <div id="score-display">得分: 0</div>
     <div id="time-display">時間: 60s</div>
   </div>
+  
   <canvas id="gameCanvas"></canvas>
-  <button id="admin-btn" onclick="alert('點擊此處可開啟後台設定面板')">後台設定</button>
+
+  <div class="btn-group">
+    <button class="action-btn" onclick="openLeaderboard()">🏆 排行榜</button>
+    <button class="action-btn" onclick="openAdmin()">⚙️ 後台設定</button>
+  </div>
+
+  <!-- 後台設定彈窗 -->
+  <div id="admin-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h2>⚙️ 後台設定面板</h2>
+      <div class="form-group">
+        <label>遊戲秒數 (秒)</label>
+        <input type="number" id="cfg-time" value="60">
+      </div>
+      <div class="form-group">
+        <label>主題顏色</label>
+        <input type="color" id="cfg-color" value="#FF6600">
+      </div>
+      <div class="form-group">
+        <label>背景圖片</label>
+        <input type="file" id="cfg-bg" accept="image/*">
+      </div>
+      <div class="form-group">
+        <label>接取 Logo 圖片</label>
+        <input type="file" id="cfg-logo" accept="image/*">
+      </div>
+      
+      <hr style="border-color:#444; margin:15px 0;">
+      <label style="color:var(--main-color); font-weight:bold;">掉落元素設定 (加分/扣分)</label>
+      <div id="elem-list" style="margin-top:10px;"></div>
+      <button type="button" class="action-btn" onclick="addElemRow()" style="width:100%; margin-top:5px;">+ 新增元素</button>
+
+      <button class="btn-submit" onclick="saveAdminConfig()">儲存並重置遊戲</button>
+      <button class="action-btn" onclick="closeModal('admin-modal')" style="width:100%; margin-top:8px;">關閉</button>
+    </div>
+  </div>
+
+  <!-- 排行榜彈窗 -->
+  <div id="rank-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h2>🏆 前台排行榜 (Top 10)</h2>
+      <table class="rank-table">
+        <thead>
+          <tr><th>名次</th><th>暱稱</th><th>分數</th></tr>
+        </thead>
+        <tbody id="rank-tbody"></tbody>
+      </table>
+      <button class="action-btn" onclick="clearLeaderboard()" style="width:100%; margin-top:15px; background:#dc3545; border:none;">清除排行榜紀錄</button>
+      <button class="action-btn" onclick="closeModal('rank-modal')" style="width:100%; margin-top:8px;">關閉</button>
+    </div>
+  </div>
 </div>
 
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   
-  // 調整 Canvas 尺寸適應螢幕
   canvas.width = canvas.parentElement.clientWidth;
   canvas.height = canvas.parentElement.clientHeight;
 
-  // 遊戲後台可設定之預設變數 (後續可存於 LocalStorage)
+  // 預設設定檔
   let config = {
     gameTime: 60,
     mainColor: '#FF6600',
+    bgImgData: null,
+    logoImgData: null,
     elements: [
-      { text: '彈性工時', score: 10, type: 'text' },
-      { text: '員工餐廳', score: 10, type: 'text' },
-      { text: '年終獎金', score: 20, type: 'text' },
-      { text: '需要打卡', score: -10, type: 'text' }
+      { text: '彈性工時', score: 10 },
+      { text: '員工餐廳', score: 10 },
+      { text: '年終獎金', score: 20 },
+      { text: '健身房', score: 10 },
+      { text: '升降桌', score: 10 },
+      { text: '生日假', score: 15 },
+      { text: '旅遊假', score: 15 },
+      { text: '需要打卡', score: -10 }
     ]
   };
 
+  // 讀取 LocalStorage 紀錄
+  if (localStorage.getItem('gamania_game_config')) {
+    try {
+      config = JSON.parse(localStorage.getItem('gamania_game_config'));
+    } catch(e) {}
+  }
+
   let score = 0;
   let timeLeft = config.gameTime;
-  let gameInterval, spawnInterval;
+  let gameInterval, spawnInterval, animFrameId;
+  let isGameOver = false;
 
-  // 玩家籃子 (Logo)
+  let bgImage = new Image();
+  let logoImage = new Image();
+
+  if (config.bgImgData) bgImage.src = config.bgImgData;
+  if (config.logoImgData) logoImage.src = config.logoImgData;
+
+  document.documentElement.style.setProperty('--main-color', config.mainColor);
+
   const player = {
-    x: canvas.width / 2 - 40,
-    y: canvas.height - 70,
-    width: 80,
-    height: 30,
-    color: config.mainColor
+    x: canvas.width / 2 - 45,
+    y: canvas.height - 80,
+    width: 90,
+    height: 40
   };
 
   let items = [];
 
-  // 觸控與滑鼠移動接取器
   function movePlayer(e) {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const rect = canvas.getBoundingClientRect();
     player.x = clientX - rect.left - player.width / 2;
-    // 邊界限制
     if (player.x < 0) player.x = 0;
     if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
   }
@@ -115,44 +224,55 @@
   window.addEventListener('touchmove', movePlayer);
   window.addEventListener('mousemove', movePlayer);
 
-  // 產生掉落物
   function spawnItem() {
+    if (isGameOver) return;
     const randomElem = config.elements[Math.floor(Math.random() * config.elements.length)];
     items.push({
-      x: Math.random() * (canvas.width - 60),
+      x: Math.random() * (canvas.width - 80),
       y: -30,
       speed: 3 + Math.random() * 3,
       data: randomElem
     });
   }
 
-  // 遊戲主循環
   function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 畫玩家底盤 (Logo 替代位置)
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-    ctx.fillStyle = '#FFF';
-    ctx.font = '12px Arial';
-    ctx.fillText('Gamania', player.x + 15, player.y + 20);
+    // 繪製背景圖
+    if (config.bgImgData && bgImage.complete) {
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    }
 
-    // 畫掉落物與碰撞檢測
+    // 繪製玩家 Logo 底盤
+    if (config.logoImgData && logoImage.complete) {
+      ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
+    } else {
+      ctx.fillStyle = config.mainColor;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Gamania', player.x + 18, player.y + 25);
+    }
+
+    // 繪製與更新掉落物
     for (let i = items.length - 1; i >= 0; i--) {
       let item = items[i];
       item.y += item.speed;
 
-      // 繪製文字膠囊
-      ctx.fillStyle = item.data.score > 0 ? '#28a745' : '#dc3545';
-      ctx.fillRect(item.x, item.y, 70, 25);
-      ctx.fillStyle = '#FFF';
-      ctx.font = '12px Arial';
-      ctx.fillText(item.data.text, item.x + 5, item.y + 17);
+      // 方框繪製（提高相容性）
+      ctx.fillStyle = item.data.score >= 0 ? '#28a745' : '#dc3545';
+      ctx.fillRect(item.x, item.y, 80, 28);
 
-      // 碰撞判定
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.data.text, item.x + 40, item.y + 18);
+
+      // 碰撞檢測
       if (
-        item.y + 25 >= player.y &&
-        item.x + 70 >= player.x &&
+        item.y + 28 >= player.y &&
+        item.x + 80 >= player.x &&
         item.x <= player.x + player.width
       ) {
         score += item.data.score;
@@ -161,33 +281,171 @@
         continue;
       }
 
-      // 超出螢幕移除
-      if (item.y > canvas.height) {
-        items.splice(i, 1);
-      }
+      if (item.y > canvas.height) items.splice(i, 1);
     }
 
-    if (timeLeft > 0) {
-      requestAnimationFrame(update);
+    if (!isGameOver) {
+      animFrameId = requestAnimationFrame(update);
     }
   }
 
-  // 計時器
   function startGame() {
-    spawnInterval = setInterval(spawnItem, 800);
+    clearInterval(gameInterval);
+    clearInterval(spawnInterval);
+    cancelAnimationFrame(animFrameId);
+
+    score = 0;
+    timeLeft = config.gameTime;
+    items = [];
+    isGameOver = false;
+
+    document.getElementById('score-display').innerText = '得分: ' + score;
+    document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
+
+    spawnInterval = setInterval(spawnItem, 700);
     gameInterval = setInterval(() => {
       timeLeft--;
       document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
       if (timeLeft <= 0) {
-        clearInterval(gameInterval);
-        clearInterval(spawnInterval);
-        alert('時間到！最終得分：' + score);
+        endGame();
       }
     }, 1000);
 
     update();
   }
 
+  function endGame() {
+    isGameOver = true;
+    clearInterval(gameInterval);
+    clearInterval(spawnInterval);
+    
+    setTimeout(() => {
+      const name = prompt(`遊戲結束！您的最終得分為：${score} 分\n請輸入您的暱稱紀錄成績：`);
+      if (name) {
+        saveScore(name, score);
+        openLeaderboard();
+      } else {
+        startGame();
+      }
+    }, 100);
+  }
+
+  // 後台邏輯
+  function openAdmin() {
+    document.getElementById('cfg-time').value = config.gameTime;
+    document.getElementById('cfg-color').value = config.mainColor;
+    
+    const list = document.getElementById('elem-list');
+    list.innerHTML = '';
+    config.elements.forEach((item) => {
+      addElemRow(item.text, item.score);
+    });
+
+    document.getElementById('admin-modal').style.display = 'flex';
+  }
+
+  function addElemRow(text = '', score = 10) {
+    const list = document.getElementById('elem-list');
+    const div = document.createElement('div');
+    div.className = 'elem-row';
+    div.innerHTML = `
+      <input type="text" value="${text}" placeholder="元素名稱">
+      <input type="number" value="${score}" placeholder="分數">
+      <button type="button" class="btn-del" onclick="this.parentElement.remove()">X</button>
+    `;
+    list.appendChild(div);
+  }
+
+  function saveAdminConfig() {
+    config.gameTime = parseInt(document.getElementById('cfg-time').value) || 60;
+    config.mainColor = document.getElementById('cfg-color').value;
+
+    const rows = document.querySelectorAll('#elem-list .elem-row');
+    let newElems = [];
+    rows.forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs[0].value.trim() !== '') {
+        newElems.push({ text: inputs[0].value.trim(), score: parseInt(inputs[1].value) || 0 });
+      }
+    });
+
+    if (newElems.length > 0) config.elements = newElems;
+
+    // 處理圖片上傳 Base64
+    const bgFile = document.getElementById('cfg-bg').files[0];
+    const logoFile = document.getElementById('cfg-logo').files[0];
+
+    if (bgFile) {
+      const bgReader = new FileReader();
+      bgReader.onload = (e) => {
+        config.bgImgData = e.target.result;
+        bgImage.src = config.bgImgData;
+        checkSaveLogo();
+      };
+      bgReader.readAsDataURL(bgFile);
+    } else {
+      checkSaveLogo();
+    }
+
+    function checkSaveLogo() {
+      if (logoFile) {
+        const logoReader = new FileReader();
+        logoReader.onload = (e) => {
+          config.logoImgData = e.target.result;
+          logoImage.src = config.logoImgData;
+          finishSave();
+        };
+        logoReader.readAsDataURL(logoFile);
+      } else {
+        finishSave();
+      }
+    }
+
+    function finishSave() {
+      localStorage.setItem('gamania_game_config', JSON.stringify(config));
+      document.documentElement.style.setProperty('--main-color', config.mainColor);
+      closeModal('admin-modal');
+      startGame();
+    }
+  }
+
+  // 排行榜邏輯
+  function saveScore(name, score) {
+    let ranks = JSON.parse(localStorage.getItem('gamania_ranks') || '[]');
+    ranks.push({ name, score, date: new Date().toLocaleDateString() });
+    ranks.sort((a, b) => b.score - a.score);
+    ranks = ranks.slice(0, 10);
+    localStorage.setItem('gamania_ranks', JSON.stringify(ranks));
+  }
+
+  function openLeaderboard() {
+    const ranks = JSON.parse(localStorage.getItem('gamania_ranks') || '[]');
+    const tbody = document.getElementById('rank-tbody');
+    tbody.innerHTML = '';
+    
+    if (ranks.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3">尚無紀錄</td></tr>';
+    } else {
+      ranks.forEach((r, idx) => {
+        tbody.innerHTML += `<tr><td>${idx + 1}</td><td>${r.name}</td><td>${r.score}</td></tr>`;
+      });
+    }
+
+    document.getElementById('rank-modal').style.display = 'flex';
+  }
+
+  function clearLeaderboard() {
+    if (confirm('確定要清除所有排行榜紀錄嗎？')) {
+      localStorage.removeItem('gamania_ranks');
+      openLeaderboard();
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  // 啟動遊戲
   startGame();
 </script>
 </body>
