@@ -120,23 +120,19 @@
 </div>
 
 <script>
-  // 🔗 請在此處貼上你的 GAS Web App URL 網址
+  // 🔗 貼上您的 GAS Web App URL 網址
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzahcQhUpPm0VjNvZvPFClLnEYXMZcrv31RS_wudN8O3XNTsgIzvjeIIqQ7uJ9A2z5a/exec";
 
   let canvas, ctx, audioCtx = null;
 
-  // 本地離線備援設定 (若沒網路或 GAS 連不上時自動使用)
   let config = {
     gameTime: 30,
     baseSpeed: 4,
+    bgImgData: null,
+    logoImgData: null,
     elements: [
       { text: '彈性工時', score: 10, imgData: null },
-      { text: '員工餐廳', score: 10, imgData: null },
-      { text: '年終獎金', score: 20, imgData: null },
-      { text: '健身房', score: 10, imgData: null },
-      { text: '升降桌', score: 10, imgData: null },
-      { text: '生日假', score: 15, imgData: null },
-      { text: '需要打卡', score: -10, imgData: null }
+      { text: '年終獎金', score: 20, imgData: null }
     ]
   };
 
@@ -146,6 +142,10 @@
   let gameInterval, spawnInterval, animFrameId;
   let isGameOver = true;
   let isFrenzy = false;
+
+  let bgImage = new Image();
+  let logoImage = new Image();
+  let isBgLoaded = false, isLogoLoaded = false;
 
   let player = { x: 0, y: 0, width: 90, height: 40 };
   let items = [];
@@ -163,7 +163,6 @@
     window.addEventListener('touchmove', movePlayer, { passive: true });
     window.addEventListener('mousemove', movePlayer);
 
-    // 展前背景同步 GAS 資料 (帶有 1.5 秒超時保護機制)
     fetchGasConfigWithTimeout();
   };
 
@@ -171,7 +170,7 @@
     if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) return;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5 秒沒網路回應就取消，改用預設值
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     fetch(GAS_API_URL, { signal: controller.signal })
       .then(res => res.json())
@@ -181,11 +180,21 @@
           config = data;
           timeLeft = config.gameTime || 30;
           document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
-          console.log("GAS Config Synced Successfully!");
+          
+          if (config.bgImgData) {
+            bgImage.crossOrigin = "Anonymous";
+            bgImage.onload = () => { isBgLoaded = true; };
+            bgImage.src = config.bgImgData;
+          }
+          if (config.logoImgData) {
+            logoImage.crossOrigin = "Anonymous";
+            logoImage.onload = () => { isLogoLoaded = true; };
+            logoImage.src = config.logoImgData;
+          }
         }
       })
       .catch(err => {
-        console.warn("GAS fetch failed or timed out. Falling back to local offline config.", err);
+        console.warn("GAS fetch timeout/error. Fallback to default.", err);
       });
   }
 
@@ -251,6 +260,7 @@
     let elemImg = null;
     if (randomElem.imgData) {
       elemImg = new Image();
+      elemImg.crossOrigin = "Anonymous";
       elemImg.src = randomElem.imgData;
     }
     
@@ -267,12 +277,20 @@
   function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = '#FF6600';
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-    ctx.fillStyle = '#FFF';
-    ctx.font = 'bold 14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
+    if (isBgLoaded && config.bgImgData) {
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    if (isLogoLoaded && config.logoImgData) {
+      ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
+    } else {
+      ctx.fillStyle = '#FF6600';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = '#FFF';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
+    }
 
     for (let i = items.length - 1; i >= 0; i--) {
       let item = items[i];
