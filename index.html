@@ -170,25 +170,74 @@
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
 
-    let config = {
-      gameTime: 60,
-      baseSpeed: 4,
-      adminPassword: '1234',
-      bgImgData: null,
-      logoImgData: null,
-      elements: [
-        { text: '彈性工時', score: 10, imgData: null },
-        { text: '員工餐廳', score: 10, imgData: null },
-        { text: '年終獎金', score: 20, imgData: null },
-        { text: '健身房', score: 10, imgData: null },
-        { text: '升降桌', score: 10, imgData: null },
-        { text: '生日假', score: 15, imgData: null },
-        { text: '需要打卡', score: -10, imgData: null }
-      ]
-    };
 
-    if (localStorage.getItem('gamania_game_config')) {
-      try { config = JSON.parse(localStorage.getItem('gamania_game_config')); } catch(e) {}
+const defaultConfig = {
+  gameTime: 60,
+  baseSpeed: 4,
+  adminPassword: '1234',
+  bgImgData: null,
+  logoImgData: null,
+  elements: [
+    { text: '彈性工時', score: 10, imgData: null },
+    { text: '員工餐廳', score: 10, imgData: null },
+    { text: '年終獎金', score: 20, imgData: null },
+    { text: '健身房', score: 10, imgData: null },
+    { text: '升降桌', score: 10, imgData: null },
+    { text: '生日假', score: 15, imgData: null },
+    { text: '需要打卡', score: -10, imgData: null }
+  ]
+};
+
+let config = {
+  ...defaultConfig,
+  elements: defaultConfig.elements.map(item => ({ ...item }))
+};
+
+try {
+  const saved = localStorage.getItem('gamania_game_config');
+
+  if (saved) {
+    const parsed = JSON.parse(saved);
+
+    config = { ...config, ...parsed };
+
+    // 避免舊設定缺少掉落元素
+    if (!Array.isArray(config.elements) ||
+        config.elements.length === 0) {
+      config.elements = defaultConfig.elements.map(
+        item => ({ ...item })
+      );
+    }
+
+    // 確保每個元素都有必要資料
+    config.elements = config.elements.filter(
+      item => item && typeof item.text === 'string'
+    );
+
+    if (config.elements.length === 0) {
+      config.elements = defaultConfig.elements.map(
+        item => ({ ...item })
+      );
+    }
+
+    // 避免遊戲時間或速度不是有效數字
+    if (!Number.isFinite(Number(config.gameTime)) ||
+        Number(config.gameTime) <= 0) {
+      config.gameTime = 60;
+    } else {
+      config.gameTime = Number(config.gameTime);
+    }
+
+    if (!Number.isFinite(Number(config.baseSpeed)) ||
+        Number(config.baseSpeed) <= 0) {
+      config.baseSpeed = 4;
+    } else {
+      config.baseSpeed = Number(config.baseSpeed);
+    }
+  }
+} catch (error) {
+  console.error('讀取遊戲設定失敗：', error);
+}
     }
 
     let currentPlayerName = '';
