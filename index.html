@@ -170,7 +170,7 @@
     if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) return;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 放寬載入時間至 5 秒
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     fetch(GAS_API_URL, { signal: controller.signal })
       .then(res => res.json())
@@ -182,10 +182,14 @@
           document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
           
           if (config.bgImgData) {
+            bgImage = new Image();
+            bgImage.crossOrigin = "anonymous";
             bgImage.onload = () => { isBgLoaded = true; };
             bgImage.src = config.bgImgData;
           }
           if (config.logoImgData) {
+            logoImage = new Image();
+            logoImage.crossOrigin = "anonymous";
             logoImage.onload = () => { isLogoLoaded = true; };
             logoImage.src = config.logoImgData;
           }
@@ -258,6 +262,7 @@
     let elemImg = null;
     if (randomElem.imgData) {
       elemImg = new Image();
+      elemImg.crossOrigin = "anonymous";
       elemImg.src = randomElem.imgData;
     }
     
@@ -293,6 +298,7 @@
       let item = items[i];
       item.y += item.speed;
 
+      // 檢查圖片是否已順利下載載入完成
       if (item.imgObj && item.imgObj.complete && item.imgObj.naturalWidth !== 0) {
         ctx.drawImage(item.imgObj, item.x, item.y, 80, 40);
       } else {
