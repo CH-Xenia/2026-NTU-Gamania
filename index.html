@@ -6,13 +6,13 @@
   <title>校園職涯博覽會 - 接寶物遊戲</title>
   <style>
     :root {
-      --main-color: #FF6600; /* Gamania 橘色系 */
+      --main-color: #FF6600;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0; padding: 0;
       background-color: #111;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       overflow: hidden;
       touch-action: none;
       color: #fff;
@@ -41,14 +41,14 @@
       z-index: 5;
     }
 
-    /* 隱藏觸發區域（角落與標題） */
+    /* 右上角隱藏觸發區 */
     #secret-trigger {
       position: absolute; top: 0; right: 0;
-      width: 60px; height: 60px;
+      width: 70px; height: 70px;
       z-index: 50; cursor: pointer;
     }
 
-    /* 全螢幕覆蓋彈窗 (開始畫面/排行榜/後台) */
+    /* 彈窗畫面 */
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.9);
@@ -64,7 +64,6 @@
     }
     .modal-card h2 { margin-top: 0; color: var(--main-color); font-size: 22px; text-align: center; }
     
-    /* 輸入框與按鈕 */
     .input-style {
       width: 100%; padding: 12px; border-radius: 8px;
       border: 1px solid #555; background: #1a1a1a; color: #fff;
@@ -81,7 +80,7 @@
       font-size: 13px; cursor: pointer; width: 100%; margin-top: 8px;
     }
 
-    /* 後台表單控制 */
+    /* 後台控制項 */
     .form-group { margin-bottom: 12px; text-align: left; }
     .form-group label { display: block; font-size: 13px; margin-bottom: 4px; color: #ccc; }
     .form-group input, .form-group select {
@@ -96,7 +95,7 @@
     .elem-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
     .btn-del { background: #dc3545; border: none; color: white; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
     
-    /* 排行榜表格 */
+    /* 排行榜 */
     .rank-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
     .rank-table th, .rank-table td { padding: 10px 5px; text-align: center; border-bottom: 1px solid #444; }
     .rank-table th { color: var(--main-color); }
@@ -105,7 +104,7 @@
 <body>
 
 <div id="game-container">
-  <!-- 右上角隱藏觸發區（連續點擊 5 下開啟後台） -->
+  <!-- 右上角隱藏點擊點 (連續點 5 下) -->
   <div id="secret-trigger" onclick="handleSecretClick()"></div>
 
   <div class="hud">
@@ -115,17 +114,17 @@
   
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 1. 遊戲開始前：輸入名字頁面 -->
+  <!-- 1. 玩家輸入名字頁面 -->
   <div id="start-screen" class="screen-overlay">
     <div class="modal-card" style="text-align: center;">
-      <h2 id="welcome-title">🎮 職涯挑戰賽</h2>
+      <h2>🎮 職涯挑戰賽</h2>
       <p style="color: #ccc; font-size: 14px; margin-top: -5px;">移動底盤接取好康，避開扣分項目！</p>
       <input type="text" id="player-name-input" class="input-style" placeholder="請輸入你的名字 / 暱稱" maxlength="10">
       <button class="btn-main" onclick="confirmStartGame()">開始遊戲</button>
     </div>
   </div>
 
-  <!-- 2. 遊戲結束：成績與排行榜頁面 -->
+  <!-- 2. 結算與排行榜頁面 -->
   <div id="end-screen" class="screen-overlay" style="display: none;">
     <div class="modal-card">
       <h2 style="margin-bottom: 5px;">🎉 遊戲結束</h2>
@@ -143,7 +142,7 @@
     </div>
   </div>
 
-  <!-- 3. 後台密碼驗證彈窗 -->
+  <!-- 3. 後台密碼驗證 -->
   <div id="auth-modal" class="screen-overlay" style="display: none;">
     <div class="modal-card" style="max-width: 300px; text-align: center;">
       <h2>🔒 管理員驗證</h2>
@@ -153,7 +152,7 @@
     </div>
   </div>
 
-  <!-- 4. 後台設定面板 -->
+  <!-- 4. 後台設定選單 -->
   <div id="admin-modal" class="screen-overlay" style="display: none;">
     <div class="modal-card">
       <h2>⚙️ 後台控制面板</h2>
@@ -164,36 +163,4 @@
       </div>
       
       <div class="form-group">
-        <label>掉落基礎速度 (1-10)</label>
-        <input type="range" id="cfg-speed" min="1" max="10" value="4" oninput="document.getElementById('speed-val').innerText = this.value">
-        <span id="speed-val" style="font-size:12px; color:var(--main-color);">4</span>
-      </div>
-
-      <div class="form-group">
-        <label>主題顏色</label>
-        <input type="color" id="cfg-color" value="#FF6600">
-      </div>
-      
-      <div class="form-group">
-        <label>背景圖片</label>
-        <input type="file" id="cfg-bg" accept="image/*">
-      </div>
-      
-      <div class="form-group">
-        <label>接取 Logo 圖片</label>
-        <input type="file" id="cfg-logo" accept="image/*">
-      </div>
-
-      <div class="form-group">
-        <label>後台登入密碼</label>
-        <input type="text" id="cfg-password" value="1234">
-      </div>
-      
-      <hr style="border-color:#444; margin:15px 0;">
-      <label style="color:var(--main-color); font-weight:bold;">掉落元素設定 (文字 / 圖片)</label>
-      <div id="elem-list" style="margin-top:10px;"></div>
-      <button type="button" class="btn-sub" onclick="addElemCard()" style="border-color:var(--main-color); color:#fff;">+ 新增掉落元素</button>
-
-      <button class="btn-main" onclick="saveAdminConfig()" style="margin-top: 15px;">儲存設定</button>
-      <button class="btn-sub" onclick="clearLeaderboard()" style="background:#dc3545; color:white; border:none; margin-top:10px;">清除排行榜資料</button>
-      <button class="btn-sub
+        <label>掉落基礎速度 (1-
