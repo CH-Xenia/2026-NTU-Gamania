@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>校園職涯博覽會 - 接寶物遊戲</title>
+  <style>
+    :root {
+      --main-color: #FF6600; /* Gamania 橘色系 */
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #222;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      color: #fff;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: #111;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--main-color);
+      text-shadow: 1px 1px 2px #000;
+      pointer-events: none;
+    }
+    #admin-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: 1px solid var(--main-color);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <div class="hud">
+    <div id="score-display">得分: 0</div>
+    <div id="time-display">時間: 60s</div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <button id="admin-btn" onclick="alert('點擊此處可開啟後台設定面板')">後台設定</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  // 調整 Canvas 尺寸適應螢幕
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+
+  // 遊戲後台可設定之預設變數 (後續可存於 LocalStorage)
+  let config = {
+    gameTime: 60,
+    mainColor: '#FF6600',
+    elements: [
+      { text: '彈性工時', score: 10, type: 'text' },
+      { text: '員工餐廳', score: 10, type: 'text' },
+      { text: '年終獎金', score: 20, type: 'text' },
+      { text: '需要打卡', score: -10, type: 'text' }
+    ]
+  };
+
+  let score = 0;
+  let timeLeft = config.gameTime;
+  let gameInterval, spawnInterval;
+
+  // 玩家籃子 (Logo)
+  const player = {
+    x: canvas.width / 2 - 40,
+    y: canvas.height - 70,
+    width: 80,
+    height: 30,
+    color: config.mainColor
+  };
+
+  let items = [];
+
+  // 觸控與滑鼠移動接取器
+  function movePlayer(e) {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const rect = canvas.getBoundingClientRect();
+    player.x = clientX - rect.left - player.width / 2;
+    // 邊界限制
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+  }
+
+  window.addEventListener('touchmove', movePlayer);
+  window.addEventListener('mousemove', movePlayer);
+
+  // 產生掉落物
+  function spawnItem() {
+    const randomElem = config.elements[Math.floor(Math.random() * config.elements.length)];
+    items.push({
+      x: Math.random() * (canvas.width - 60),
+      y: -30,
+      speed: 3 + Math.random() * 3,
+      data: randomElem
+    });
+  }
+
+  // 遊戲主循環
+  function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 畫玩家底盤 (Logo 替代位置)
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    ctx.fillStyle = '#FFF';
+    ctx.font = '12px Arial';
+    ctx.fillText('Gamania', player.x + 15, player.y + 20);
+
+    // 畫掉落物與碰撞檢測
+    for (let i = items.length - 1; i >= 0; i--) {
+      let item = items[i];
+      item.y += item.speed;
+
+      // 繪製文字膠囊
+      ctx.fillStyle = item.data.score > 0 ? '#28a745' : '#dc3545';
+      ctx.fillRect(item.x, item.y, 70, 25);
+      ctx.fillStyle = '#FFF';
+      ctx.font = '12px Arial';
+      ctx.fillText(item.data.text, item.x + 5, item.y + 17);
+
+      // 碰撞判定
+      if (
+        item.y + 25 >= player.y &&
+        item.x + 70 >= player.x &&
+        item.x <= player.x + player.width
+      ) {
+        score += item.data.score;
+        document.getElementById('score-display').innerText = '得分: ' + score;
+        items.splice(i, 1);
+        continue;
+      }
+
+      // 超出螢幕移除
+      if (item.y > canvas.height) {
+        items.splice(i, 1);
+      }
+    }
+
+    if (timeLeft > 0) {
+      requestAnimationFrame(update);
+    }
+  }
+
+  // 計時器
+  function startGame() {
+    spawnInterval = setInterval(spawnItem, 800);
+    gameInterval = setInterval(() => {
+      timeLeft--;
+      document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
+      if (timeLeft <= 0) {
+        clearInterval(gameInterval);
+        clearInterval(spawnInterval);
+        alert('時間到！最終得分：' + score);
+      }
+    }, 1000);
+
+    update();
+  }
+
+  startGame();
+</script>
+</body>
+</html>
