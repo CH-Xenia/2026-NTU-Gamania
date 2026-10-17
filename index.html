@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>校園職涯博覽會 - 接寶物遊戲</title>
   <style>
     :root { --main-color: #FF6600; }
@@ -21,20 +21,47 @@
     }
     canvas { display: block; width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1; }
     
+    /* 移至底部的 HUD (避開 iPhone 動態島與瀏海) */
     .hud {
-      position: absolute; top: 15px; left: 15px; right: 15px;
+      position: absolute;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      left: 15px; right: 15px;
       display: flex; justify-content: space-between;
-      font-size: 20px; font-weight: bold; color: var(--main-color);
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8); pointer-events: none; z-index: 5;
+      font-size: 18px; font-weight: bold; color: var(--main-color);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+      pointer-events: none; z-index: 10;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 15px; border-radius: 20px;
+      border: 1px solid rgba(255,102,0,0.3);
     }
 
-    /* 右上角隱藏點擊區 */
+    /* 衝刺模式提示 */
+    #frenzy-banner {
+      position: absolute; top: 15%; width: 100%;
+      text-align: center; font-size: 24px; font-weight: 900;
+      color: #FFD700; text-shadow: 0 0 10px #FF6600;
+      z-index: 8; display: none; pointer-events: none;
+      animation: pulse 0.8s infinite alternate;
+    }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+
+    /* 最後 10 秒巨型倒數背景 */
+    #big-countdown {
+      position: absolute; top: 35%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 140px; font-weight: 900;
+      color: rgba(255, 50, 50, 0.25);
+      text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+      pointer-events: none; z-index: 2; display: none;
+    }
+
+    /* 右上角隱藏點擊區 (開啟後台) */
     #secret-trigger {
       position: absolute; top: 0; right: 0;
       width: 80px; height: 80px; z-index: 50; cursor: pointer;
     }
 
-    /* 彈窗畫面覆蓋層：強制 z-index 比 canvas 高且可接收觸發事件 */
+    /* 彈窗畫面 */
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column;
@@ -80,9 +107,14 @@
 <body>
 
 <div id="game-container">
-  <!-- 右上角隱藏點擊區 (連續點擊 5 下開啟後台) -->
+  <!-- 右上角隱藏觸發點 (連續點擊 5 下開啟後台) -->
   <div id="secret-trigger" onclick="handleSecretClick()"></div>
 
+  <!-- 巨型倒數與衝刺提示 -->
+  <div id="big-countdown">10</div>
+  <div id="frenzy-banner">⚡ 衝刺階段！速度加倍 ⚡</div>
+
+  <!-- 底部 HUD 資訊欄 (避開頂部瀏海/動態島) -->
   <div class="hud">
     <div id="score-display">得分: 0</div>
     <div id="time-display">時間: 60s</div>
@@ -90,7 +122,7 @@
   
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 1. 輸入名字開始畫面 -->
+  <!-- 1. 輸入名字開始頁面 -->
   <div id="start-screen" class="screen-overlay">
     <div class="modal-card" style="text-align: center;">
       <h2>🎮 職涯挑戰賽</h2>
@@ -100,7 +132,7 @@
     </div>
   </div>
 
-  <!-- 2. 結算與排行榜畫面 -->
+  <!-- 2. 結算與排行榜頁面 -->
   <div id="end-screen" class="screen-overlay" style="display: none;">
     <div class="modal-card">
       <h2>🎉 遊戲結束</h2>
@@ -165,6 +197,8 @@
 
 <script>
   let canvas, ctx;
+  let audioCtx = null; // Web Audio API 音效
+
   let config = {
     gameTime: 60,
     baseSpeed: 4,
@@ -191,6 +225,7 @@
   let timeLeft = config.gameTime;
   let gameInterval, spawnInterval, animFrameId;
   let isGameOver = true;
+  let isFrenzy = false; // 是否為加速衝刺階段
 
   let bgImage = new Image();
   let logoImage = new Image();
@@ -199,20 +234,53 @@
 
   let player = { x: 0, y: 0, width: 90, height: 40 };
   let items = [];
+  let floatingTexts = []; // 接取浮動文字 (+10, -10)
 
   window.onload = function() {
-    console.log("Game Page Initialized");
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
     player.x = canvas.width / 2 - 45;
-    player.y = canvas.height - 80;
+    player.y = canvas.height - 120; // 留出空間給底部 HUD
 
     window.addEventListener('touchmove', movePlayer);
     window.addEventListener('mousemove', movePlayer);
   };
+
+  // Web Audio 輕量音效生成
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+
+  function playSound(isPositive) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (isPositive) {
+      // 加分高音叮咚
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    } else {
+      // 扣分低音嗶嗶
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    }
+  }
 
   function movePlayer(e) {
     if (isGameOver) return;
@@ -223,32 +291,24 @@
     if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
   }
 
-  // 1. 開始遊戲按鈕觸發
   function onClickStartGame() {
-    console.log("Start Button Clicked");
+    initAudio();
     const input = document.getElementById('player-name-input').value.trim();
-    if (!input) {
-      alert('請輸入您的名字！');
-      return;
-    }
+    if (!input) { alert('請輸入您的名字！'); return; }
     currentPlayerName = input;
     document.getElementById('start-screen').style.display = 'none';
     startGame();
   }
 
-  // 2. 再玩一次按鈕觸發
   function onClickRestart() {
-    console.log("Restart Button Clicked");
     document.getElementById('end-screen').style.display = 'none';
     document.getElementById('player-name-input').value = '';
     document.getElementById('start-screen').style.display = 'flex';
   }
 
-  // 3. 右上角隱藏點擊點 (5下)
   let secretClicks = 0, secretTimer = null;
   function handleSecretClick() {
     secretClicks++;
-    console.log("Secret clicked:", secretClicks);
     clearTimeout(secretTimer);
     if (secretClicks >= 5) {
       secretClicks = 0;
@@ -260,13 +320,10 @@
   }
 
   function onClickVerifyAuth() {
-    const pass = document.getElementById('admin-pass-input').value;
-    if (pass === (config.adminPassword || '1234')) {
+    if (document.getElementById('admin-pass-input').value === (config.adminPassword || '1234')) {
       closeModal('auth-modal');
       openAdmin();
-    } else {
-      alert('密碼錯誤！');
-    }
+    } else { alert('密碼錯誤！'); }
   }
 
   function openAdmin() {
@@ -338,10 +395,12 @@
     let elemImg = null;
     if (randomElem.imgData) { elemImg = new Image(); elemImg.src = randomElem.imgData; }
     
+    // 衝刺階段速度提升 1.5 倍
+    const speedMult = isFrenzy ? 1.5 : 1;
     items.push({
       x: Math.random() * (canvas.width - 80),
       y: -40,
-      speed: (config.baseSpeed || 4) + Math.random() * 2,
+      speed: ((config.baseSpeed || 4) + Math.random() * 2) * speedMult,
       data: randomElem,
       imgObj: elemImg
     });
@@ -352,6 +411,7 @@
 
     if (config.bgImgData && bgImage.complete) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
+    // 繪製底盤
     if (config.logoImgData && logoImage.complete) {
       ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
     } else {
@@ -363,6 +423,7 @@
       ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
     }
 
+    // 更新掉落物
     for (let i = items.length - 1; i >= 0; i--) {
       let item = items[i];
       item.y += item.speed;
@@ -378,18 +439,47 @@
         ctx.fillText(item.data.text, item.x + 40, item.y + 18);
       }
 
+      // 碰撞判定
       if (
         item.y + 30 >= player.y &&
         item.x + 80 >= player.x &&
         item.x <= player.x + player.width
       ) {
         score += item.data.score;
+        playSound(item.data.score >= 0);
+        
+        // 新增接取動態浮動文字
+        floatingTexts.push({
+          x: item.x + 30,
+          y: player.y - 10,
+          text: (item.data.score >= 0 ? '+' : '') + item.data.score,
+          color: item.data.score >= 0 ? '#00FF66' : '#FF3333',
+          alpha: 1.0
+        });
+
         document.getElementById('score-display').innerText = '得分: ' + score;
         items.splice(i, 1);
         continue;
       }
 
       if (item.y > canvas.height) items.splice(i, 1);
+    }
+
+    // 繪製與更新接取浮動文字
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      let ft = floatingTexts[i];
+      ft.y -= 1.5;
+      ft.alpha -= 0.025;
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, ft.alpha);
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 22px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+
+      if (ft.alpha <= 0) floatingTexts.splice(i, 1);
     }
 
     if (!isGameOver) animFrameId = requestAnimationFrame(update);
@@ -399,14 +489,43 @@
     clearInterval(gameInterval); clearInterval(spawnInterval);
     cancelAnimationFrame(animFrameId);
 
-    score = 0; timeLeft = config.gameTime; items = []; isGameOver = false;
+    score = 0;
+    timeLeft = config.gameTime;
+    items = [];
+    floatingTexts = [];
+    isGameOver = false;
+    isFrenzy = false;
+
+    document.getElementById('frenzy-banner').style.display = 'none';
+    document.getElementById('big-countdown').style.display = 'none';
     document.getElementById('score-display').innerText = '得分: ' + score;
     document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
 
-    spawnInterval = setInterval(spawnItem, 600);
+    let spawnSpeed = 600;
+    spawnInterval = setInterval(spawnItem, spawnSpeed);
+
     gameInterval = setInterval(() => {
       timeLeft--;
       document.getElementById('time-display').innerText = '時間: ' + timeLeft + 's';
+
+      // 1. 秒數折半難度漸進 (最後一半時間啟動衝刺)
+      const halfTime = Math.floor(config.gameTime / 2);
+      if (timeLeft <= halfTime && !isFrenzy) {
+        isFrenzy = true;
+        document.getElementById('frenzy-banner').style.display = 'block';
+        clearInterval(spawnInterval);
+        spawnInterval = setInterval(spawnItem, 350); // 掉落頻率加倍
+      }
+
+      // 2. 最後 10 秒巨型背景倒數
+      const bigCount = document.getElementById('big-countdown');
+      if (timeLeft <= 10 && timeLeft > 0) {
+        bigCount.style.display = 'block';
+        bigCount.innerText = timeLeft;
+      } else {
+        bigCount.style.display = 'none';
+      }
+
       if (timeLeft <= 0) endGame();
     }, 1000);
 
@@ -416,7 +535,9 @@
   function endGame() {
     isGameOver = true;
     clearInterval(gameInterval); clearInterval(spawnInterval);
-    
+    document.getElementById('frenzy-banner').style.display = 'none';
+    document.getElementById('big-countdown').style.display = 'none';
+
     let ranks = JSON.parse(localStorage.getItem('gamania_ranks') || '[]');
     ranks.push({ name: currentPlayerName, score, date: new Date().toLocaleDateString() });
     ranks.sort((a, b) => b.score - a.score);
