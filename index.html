@@ -7,67 +7,76 @@
   <style>
     :root { --main-color: #FF6600; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 0;
-      background-color: #111;
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background-color: #000;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       overflow: hidden; touch-action: none; color: #fff;
     }
+
+    /* 滿版滿屏容器 (支援 Safe Area 防遮擋) */
     #game-container {
-      position: relative; width: 100vw; height: 100vh;
-      max-width: 500px; margin: 0 auto; background-color: #222;
-      background-size: cover; background-position: center;
-      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 500px; /* 防止平板電腦上過寬 */
+      margin: 0 auto;
+      background-color: #1a1a1a;
+      overflow: hidden;
     }
+    
     canvas { display: block; width: 100%; height: 100%; position: absolute; top:0; left:0; z-index: 1; }
     
+    /* 底部 HUD：完美避開底部分數遮擋與安全邊界 */
     .hud {
       position: absolute;
-      bottom: calc(20px + env(safe-area-inset-bottom));
+      bottom: max(15px, env(safe-area-inset-bottom) + 5px);
       left: 15px; right: 15px;
-      display: flex; justify-content: space-between;
+      display: flex; justify-content: space-between; align-items: center;
       font-size: 18px; font-weight: bold; color: var(--main-color);
       text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
       pointer-events: none; z-index: 10;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 8px 15px; border-radius: 20px;
-      border: 1px solid rgba(255,102,0,0.3);
+      background: rgba(0, 0, 0, 0.65);
+      padding: 10px 18px; border-radius: 25px;
+      border: 1.5px solid rgba(255, 102, 0, 0.4);
+      backdrop-filter: blur(5px);
     }
 
     #frenzy-banner {
-      position: absolute; top: 15%; width: 100%;
+      position: absolute; top: 12%; width: 100%;
       text-align: center; font-size: 24px; font-weight: 900;
-      color: #FFD700; text-shadow: 0 0 10px #FF6600;
+      color: #FFD700; text-shadow: 0 0 12px #FF6600;
       z-index: 8; display: none; pointer-events: none;
       animation: pulse 0.8s infinite alternate;
     }
-    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
 
     #big-countdown {
       position: absolute; top: 35%; left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 140px; font-weight: 900;
-      color: rgba(255, 50, 50, 0.25);
-      text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+      font-size: 130px; font-weight: 900;
+      color: rgba(255, 50, 50, 0.3);
+      text-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
       pointer-events: none; z-index: 2; display: none;
     }
 
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column;
+      background: rgba(0, 0, 0, 0.88); display: flex; flex-direction: column;
       justify-content: center; align-items: center; z-index: 999; padding: 25px;
       pointer-events: auto;
     }
     .modal-card {
-      background: #2a2a2a; border-radius: 14px; width: 100%;
-      max-width: 420px; max-height: 85vh; overflow-y: auto; padding: 22px;
+      background: #222; border-radius: 16px; width: 100%;
+      max-width: 400px; max-height: 85vh; overflow-y: auto; padding: 22px;
       border: 2px solid var(--main-color); pointer-events: auto;
+      box-shadow: 0 0 25px rgba(255,102,0,0.3);
     }
     .modal-card h2 { margin-top: 0; color: var(--main-color); font-size: 22px; text-align: center; }
     
     .input-style {
       width: 100%; padding: 12px; border-radius: 8px;
-      border: 1px solid #555; background: #1a1a1a; color: #fff;
+      border: 1px solid #555; background: #111; color: #fff;
       font-size: 16px; margin: 15px 0; text-align: center; pointer-events: auto;
     }
     .btn-main {
@@ -77,7 +86,7 @@
     }
 
     .result-box {
-      background: #1a1a1a; border-radius: 10px; padding: 15px; margin: 15px 0;
+      background: #111; border-radius: 10px; padding: 15px; margin: 15px 0;
       border: 1px solid #444; text-align: center;
     }
     .result-row {
@@ -85,7 +94,7 @@
     }
     .notice-banner {
       background: #FFD700; color: #000; font-weight: bold; padding: 12px;
-      border-radius: 8px; text-align: center; font-size: 16px; margin-top: 15px;
+      border-radius: 8px; text-align: center; font-size: 15px; margin-top: 15px;
       box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     }
   </style>
@@ -96,6 +105,7 @@
   <div id="big-countdown">10</div>
   <div id="frenzy-banner">⚡ 衝刺階段！速度加倍 ⚡</div>
 
+  <!-- 底部 HUD 資訊欄 -->
   <div class="hud">
     <div id="score-display">得分: 0</div>
     <div id="time-display">時間: 30s</div>
@@ -106,7 +116,7 @@
   <div id="start-screen" class="screen-overlay">
     <div class="modal-card" style="text-align: center;">
       <h2>🎮 職涯挑戰賽</h2>
-      <p style="color: #ccc; font-size: 14px;">移動底盤接取好康，避開扣分項目！</p>
+      <p style="color: #ccc; font-size: 14px;">左右移動底盤接取好康，避開扣分項目！</p>
       <input type="text" id="player-name-input" class="input-style" placeholder="請輸入你的名字 / 暱稱" maxlength="10">
       <button class="btn-main" onclick="onClickStartGame()">開始遊戲</button>
     </div>
@@ -145,7 +155,6 @@
 </div>
 
 <script>
-  // 🔗 請填入您的 GAS Web App 網址
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzahcQhUpPm0VjNvZvPFClLnEYXMZcrv31RS_wudN8O3XNTsgIzvjeIIqQ7uJ9A2z5a/exec";
 
   let canvas, ctx, audioCtx = null;
@@ -176,7 +185,8 @@
   let logoImage = new Image();
   let isBgLoaded = false, isLogoLoaded = false;
 
-  let player = { x: 0, y: 0, width: 90, height: 40 };
+  // 玩家籃子動態物理屬性
+  let player = { x: 0, y: 0, width: 100, height: 50 };
   let items = [];
   let floatingTexts = [];
 
@@ -184,16 +194,24 @@
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-    player.x = canvas.width / 2 - 45;
-    player.y = canvas.height - 120;
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     window.addEventListener('touchmove', movePlayer, { passive: true });
     window.addEventListener('mousemove', movePlayer);
 
     fetchGasConfigWithTimeout();
   };
+
+  function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    
+    // 將籃子高度預設放在底部 HUD 上方 20px 處，防止被 HUD 擋住
+    const hudHeight = 70;
+    player.y = canvas.height - hudHeight - player.height - 15;
+    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+  }
 
   function fetchGasConfigWithTimeout() {
     if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) return;
@@ -219,7 +237,14 @@
           if (config.logoImgData) {
             logoImage = new Image();
             logoImage.crossOrigin = "anonymous";
-            logoImage.onload = () => { isLogoLoaded = true; };
+            logoImage.onload = () => { 
+              isLogoLoaded = true;
+              // 依據 Logo 原始比例動態計算寬高，防壓縮
+              const aspect = logoImage.naturalWidth / logoImage.naturalHeight;
+              player.width = 100;
+              player.height = Math.round(100 / aspect);
+              resizeCanvas();
+            };
             logoImage.src = config.logoImgData;
           }
         }
@@ -311,21 +336,43 @@
     
     const speedMult = isFrenzy ? 1.5 : 1;
     items.push({
-      x: Math.random() * (canvas.width - 100),
-      y: -40,
+      x: Math.random() * (canvas.width - 90),
+      y: -50,
       speed: ((config.baseSpeed || 4) + Math.random() * 2) * speedMult,
       data: randomElem,
       imgObj: elemImg
     });
   }
 
+  // 🖼️ 核心背景 Cover 等比例無變形繪製演算法
+  function drawBackgroundCover(img) {
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+    const canvasAspect = canvas.width / canvas.height;
+    let renderW, renderH, offsetX, offsetY;
+
+    if (canvasAspect > imgAspect) {
+      renderW = canvas.width;
+      renderH = canvas.width / imgAspect;
+      offsetX = 0;
+      offsetY = (canvas.height - renderH) / 2;
+    } else {
+      renderH = canvas.height;
+      renderW = canvas.height * imgAspect;
+      offsetX = (canvas.width - renderW) / 2;
+      offsetY = 0;
+    }
+    ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
+  }
+
   function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 1. 背景防壓縮等比例繪製
     if (isBgLoaded && config.bgImgData) {
-      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      drawBackgroundCover(bgImage);
     }
 
+    // 2. 籃子/Logo 防壓縮繪製
     if (isLogoLoaded && config.logoImgData) {
       ctx.drawImage(logoImage, player.x, player.y, player.width, player.height);
     } else {
@@ -334,7 +381,7 @@
       ctx.fillStyle = '#FFF';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('Gamania', player.x + player.width / 2, player.y + 25);
+      ctx.fillText('Gamania', player.x + player.width / 2, player.y + player.height / 2 + 5);
     }
 
     const currentFontSize = config.fontSize || 18;
@@ -343,24 +390,32 @@
       let item = items[i];
       item.y += item.speed;
 
+      // 3. 掉落物品圖片與文字自動寬高適應
+      let itemWidth = 90, itemHeight = 45;
+
       if (item.imgObj && item.imgObj.complete && item.imgObj.naturalWidth !== 0) {
-        ctx.drawImage(item.imgObj, item.x, item.y, 90, 45);
+        const aspect = item.imgObj.naturalWidth / item.imgObj.naturalHeight;
+        itemWidth = 85;
+        itemHeight = Math.round(85 / aspect);
+        ctx.drawImage(item.imgObj, item.x, item.y, itemWidth, itemHeight);
       } else {
         ctx.font = `bold ${currentFontSize}px Arial`;
-        const textWidth = ctx.measureText(item.data.text).width + 24;
-        const boxHeight = currentFontSize + 16;
+        itemWidth = ctx.measureText(item.data.text).width + 24;
+        itemHeight = currentFontSize + 16;
 
         ctx.fillStyle = item.data.score >= 0 ? '#28a745' : '#dc3545';
-        ctx.fillRect(item.x, item.y, textWidth, boxHeight);
+        ctx.fillRect(item.x, item.y, itemWidth, itemHeight);
         
         ctx.fillStyle = '#FFF';
         ctx.textAlign = 'center';
-        ctx.fillText(item.data.text, item.x + textWidth / 2, item.y + currentFontSize + 2);
+        ctx.fillText(item.data.text, item.x + itemWidth / 2, item.y + currentFontSize + 2);
       }
 
+      // 碰撞判定保護
       if (
-        item.y + 30 >= player.y &&
-        item.x + 80 >= player.x &&
+        item.y + itemHeight >= player.y &&
+        item.y <= player.y + player.height &&
+        item.x + itemWidth >= player.x &&
         item.x <= player.x + player.width
       ) {
         score += item.data.score;
@@ -370,7 +425,7 @@
         else negativeCount++;
         
         floatingTexts.push({
-          x: item.x + 30,
+          x: item.x + itemWidth / 2,
           y: player.y - 10,
           text: (item.data.score >= 0 ? '+' : '') + item.data.score,
           color: item.data.score >= 0 ? '#00FF66' : '#FF3333',
@@ -426,7 +481,6 @@
     let spawnSpeed = 600;
     spawnInterval = setInterval(spawnItem, spawnSpeed);
 
-    // 🚀 每 5 秒自動將戰況同步給大螢幕投影
     liveSyncInterval = setInterval(sendLiveScoreToGAS, 5000);
 
     gameInterval = setInterval(() => {
@@ -461,13 +515,11 @@
     document.getElementById('frenzy-banner').style.display = 'none';
     document.getElementById('big-countdown').style.display = 'none';
 
-    // 遊戲結束上傳最終確定成績
     sendLiveScoreToGAS();
 
     const totalCaught = positiveCount + negativeCount;
     const accuracyRate = totalCaught > 0 ? Math.round((positiveCount / totalCaught) * 100) : 0;
 
-    // 渲染結算資訊
     document.getElementById('player-summary-title').innerText = `${currentPlayerName} 的挑戰成果`;
     document.getElementById('pos-count-text').innerText = `${positiveCount} 個`;
     document.getElementById('neg-count-text').innerText = `${negativeCount} 個`;
