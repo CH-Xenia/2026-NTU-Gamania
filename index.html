@@ -131,7 +131,6 @@
           <span>🏆 總得分：</span>
           <span id="final-score-val" style="color: var(--main-color); font-weight: bold; font-size: 20px;">0 分</span>
         </div>
-        <!-- 新增粗體顯示正確率 -->
         <div class="result-row" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #444;">
           <span style="font-weight: bold;">🎯 答題正確率：</span>
           <span id="accuracy-rate-val" style="color: var(--main-color); font-weight: 900; font-size: 22px;">0%</span>
@@ -169,7 +168,7 @@
   let negativeCount = 0;
 
   let timeLeft = config.gameTime;
-  let gameInterval, spawnInterval, animFrameId;
+  let gameInterval, spawnInterval, animFrameId, liveSyncInterval;
   let isGameOver = true;
   let isFrenzy = false;
 
@@ -228,6 +227,26 @@
       .catch(err => {
         console.warn("GAS fetch timeout/error. Fallback to default.", err);
       });
+  }
+
+  function sendLiveScoreToGAS() {
+    if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID") || !currentPlayerName) return;
+
+    const totalCaught = positiveCount + negativeCount;
+    const accuracyRate = totalCaught > 0 ? Math.round((positiveCount / totalCaught) * 100) : 0;
+
+    fetch(GAS_API_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        name: currentPlayerName, 
+        score: score,
+        posCount: positiveCount,
+        negCount: negativeCount,
+        accuracy: accuracyRate
+      })
+    }).catch(e => console.warn("Live sync failed", e));
   }
 
   function initAudio() {
@@ -386,7 +405,7 @@
   }
 
   function startGame() {
-    clearInterval(gameInterval); clearInterval(spawnInterval);
+    clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(liveSyncInterval);
     cancelAnimationFrame(animFrameId);
 
     score = 0;
@@ -406,6 +425,9 @@
 
     let spawnSpeed = 600;
     spawnInterval = setInterval(spawnItem, spawnSpeed);
+
+    // 🚀 每 5 秒自動將戰況同步給大螢幕投影
+    liveSyncInterval = setInterval(sendLiveScoreToGAS, 5000);
 
     gameInterval = setInterval(() => {
       timeLeft--;
@@ -435,29 +457,15 @@
 
   function endGame() {
     isGameOver = true;
-    clearInterval(gameInterval); clearInterval(spawnInterval);
+    clearInterval(gameInterval); clearInterval(spawnInterval); clearInterval(liveSyncInterval);
     document.getElementById('frenzy-banner').style.display = 'none';
     document.getElementById('big-countdown').style.display = 'none';
 
-    // 計算正確率 (正確數 / 總接數)
+    // 遊戲結束上傳最終確定成績
+    sendLiveScoreToGAS();
+
     const totalCaught = positiveCount + negativeCount;
     const accuracyRate = totalCaught > 0 ? Math.round((positiveCount / totalCaught) * 100) : 0;
-
-    // 自動上傳成績至 GAS 雲端
-    if (GAS_API_URL && !GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) {
-      fetch(GAS_API_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: currentPlayerName, 
-          score: score,
-          posCount: positiveCount,
-          negCount: negativeCount,
-          accuracy: accuracyRate
-        })
-      }).catch(e => console.warn("Upload score failed", e));
-    }
 
     // 渲染結算資訊
     document.getElementById('player-summary-title').innerText = `${currentPlayerName} 的挑戰成果`;
