@@ -81,7 +81,7 @@
       border: 1px solid #444; text-align: center;
     }
     .result-row {
-      display: flex; justify-content: space-between; font-size: 16px; margin: 8px 0;
+      display: flex; justify-content: space-between; font-size: 16px; margin: 8px 0; align-items: center;
     }
     .notice-banner {
       background: #FFD700; color: #000; font-weight: bold; padding: 12px;
@@ -131,6 +131,11 @@
           <span>🏆 總得分：</span>
           <span id="final-score-val" style="color: var(--main-color); font-weight: bold; font-size: 20px;">0 分</span>
         </div>
+        <!-- 新增粗體顯示正確率 -->
+        <div class="result-row" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #444;">
+          <span style="font-weight: bold;">🎯 答題正確率：</span>
+          <span id="accuracy-rate-val" style="color: var(--main-color); font-weight: 900; font-size: 22px;">0%</span>
+        </div>
       </div>
 
       <div class="notice-banner">
@@ -142,7 +147,7 @@
 
 <script>
   // 🔗 請填入您的 GAS Web App 網址
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzahcQhUpPm0VjNvZvPFClLnEYXMZcrv31RS_wudN8O3XNTsgIzvjeIIqQ7uJ9A2z5a/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec";
 
   let canvas, ctx, audioCtx = null;
 
@@ -160,8 +165,8 @@
 
   let currentPlayerName = '';
   let score = 0;
-  let positiveCount = 0; // 加分數量紀錄
-  let negativeCount = 0; // 扣分數量紀錄
+  let positiveCount = 0;
+  let negativeCount = 0;
 
   let timeLeft = config.gameTime;
   let gameInterval, spawnInterval, animFrameId;
@@ -197,7 +202,7 @@
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    fetch(GAS_API_URL, { signal: controller.signal })
+    fetch(GAS_API_URL + "?t=" + new Date().getTime(), { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         clearTimeout(timeoutId);
@@ -322,7 +327,6 @@
       if (item.imgObj && item.imgObj.complete && item.imgObj.naturalWidth !== 0) {
         ctx.drawImage(item.imgObj, item.x, item.y, 90, 45);
       } else {
-        // 動態計算文字區塊寬度與字體大小
         ctx.font = `bold ${currentFontSize}px Arial`;
         const textWidth = ctx.measureText(item.data.text).width + 24;
         const boxHeight = currentFontSize + 16;
@@ -343,7 +347,6 @@
         score += item.data.score;
         playSound(item.data.score >= 0);
 
-        // 統計數量
         if (item.data.score >= 0) positiveCount++;
         else negativeCount++;
         
@@ -436,7 +439,11 @@
     document.getElementById('frenzy-banner').style.display = 'none';
     document.getElementById('big-countdown').style.display = 'none';
 
-    // 自動上傳成績與數量至 GAS 雲端
+    // 計算正確率 (正確數 / 總接數)
+    const totalCaught = positiveCount + negativeCount;
+    const accuracyRate = totalCaught > 0 ? Math.round((positiveCount / totalCaught) * 100) : 0;
+
+    // 自動上傳成績至 GAS 雲端
     if (GAS_API_URL && !GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) {
       fetch(GAS_API_URL, {
         method: "POST",
@@ -446,7 +453,8 @@
           name: currentPlayerName, 
           score: score,
           posCount: positiveCount,
-          negCount: negativeCount
+          negCount: negativeCount,
+          accuracy: accuracyRate
         })
       }).catch(e => console.warn("Upload score failed", e));
     }
@@ -456,6 +464,7 @@
     document.getElementById('pos-count-text').innerText = `${positiveCount} 個`;
     document.getElementById('neg-count-text').innerText = `${negativeCount} 個`;
     document.getElementById('final-score-val').innerText = `${score} 分`;
+    document.getElementById('accuracy-rate-val').innerText = `${accuracyRate}%`;
 
     document.getElementById('end-screen').style.display = 'flex';
   }
