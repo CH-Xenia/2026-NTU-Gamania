@@ -18,7 +18,7 @@
       text-shadow: 0 0 15px rgba(255, 102, 0, 0.6); letter-spacing: 2px;
     }
     .rank-card {
-      width: 100%; max-width: 850px; background: rgba(42, 42, 42, 0.8);
+      width: 100%; max-width: 900px; background: rgba(42, 42, 42, 0.8);
       border-radius: 16px; border: 2px solid var(--main-color);
       box-shadow: 0 0 30px rgba(0,0,0,0.8); padding: 20px;
     }
@@ -34,7 +34,7 @@
       margin-top: 15px; font-size: 14px; color: #888; display: flex; gap: 10px; align-items: center;
     }
     .dot { width: 10px; height: 10px; background: #28a745; border-radius: 50%; animation: blink 1s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   </style>
 </head>
 <body>
@@ -46,13 +46,14 @@
       <thead>
         <tr>
           <th style="width: 15%;">名次</th>
-          <th style="width: 35%;">玩家暱稱</th>
-          <th style="width: 25%;">福利接取數</th>
-          <th style="width: 25%;">挑戰得分</th>
+          <th style="width: 30%;">玩家暱稱</th>
+          <th style="width: 20%;">福利接取</th>
+          <th style="width: 20%;">正確率</th>
+          <th style="width: 15%;">得分</th>
         </tr>
       </thead>
       <tbody id="rank-rows">
-        <tr><td colspan="4" style="color: #aaa;">載入最新戰報中...</td></tr>
+        <tr><td colspan="5" style="color: #aaa;">載入最新戰報中...</td></tr>
       </tbody>
     </table>
   </div>
@@ -62,20 +63,21 @@
   </div>
 
 <script>
-  // 🔗 請填入您的 GAS Web App URL 網址
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzahcQhUpPm0VjNvZvPFClLnEYXMZcrv31RS_wudN8O3XNTsgIzvjeIIqQ7uJ9A2z5a/exec";
+  // 🔗 請填入您的 GAS Web App 網址
+  const GAS_API_URL = "https://script.google.com/macros/s/YOUR_GAS_DEPLOYMENT_ID/exec";
 
   function fetchTop10() {
     if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS_DEPLOYMENT_ID")) return;
 
-    fetch(GAS_API_URL + "?type=getRank")
+    // 帶上記號 ?type=getRank&t=timestamp 強制避開瀏覽器快取
+    fetch(GAS_API_URL + "?type=getRank&t=" + new Date().getTime(), { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
         const tbody = document.getElementById('rank-rows');
         tbody.innerHTML = '';
 
         if (!data || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="color: #aaa;">尚無挑戰紀錄，快來掃碼成為第一名！</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="color: #aaa;">尚無挑戰紀錄，快來掃碼成為第一名！</td></tr>';
           return;
         }
 
@@ -86,11 +88,14 @@
           else if (index === 1) { rankClass = 'top-2'; medal = '🥈 2'; }
           else if (index === 2) { rankClass = 'top-3'; medal = '🥉 3'; }
 
+          const acc = item.accuracy !== undefined ? item.accuracy + '%' : '--';
+
           tbody.innerHTML += `
             <tr class="${rankClass}">
               <td>${medal}</td>
               <td>${escapeHtml(item.name)}</td>
               <td style="color:#28a745;">${item.posCount} 個</td>
+              <td style="color:var(--main-color);">${acc}</td>
               <td>${item.score} 分</td>
             </tr>
           `;
@@ -104,7 +109,7 @@
   }
 
   fetchTop10();
-  setInterval(fetchTop10, 3000); // 每 3 秒動態更新一次
+  setInterval(fetchTop10, 3000); // 確實每 3 秒動態更新一次
 </script>
 </body>
 </html>
